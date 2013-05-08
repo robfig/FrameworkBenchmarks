@@ -1,10 +1,8 @@
 package controllers
 
 import (
-	"database/sql"
-	// _ "github.com/go-sql-driver/mysql"
+	"benchmark/app/db"
 	"github.com/robfig/revel"
-	"github.com/robfig/revel/modules/db/app"
 	"math/rand"
 	"runtime"
 	"sort"
@@ -26,29 +24,18 @@ type Fortune struct {
 }
 
 const (
-	WorldSelect        = "SELECT id,randomNumber FROM World where id=?"
-	FortuneSelect      = "SELECT id,message FROM Fortune"
-	WorldRowCount      = 10000
-	MaxConnectionCount = 100
-)
-
-var (
-	worldStatement   *sql.Stmt
-	fortuneStatement *sql.Stmt
+	WorldRowCount = 10000
 )
 
 func init() {
+	//revel.RegisterPlugin(db.GorpPlugin{})
 	revel.OnAppStart(func() {
-		var err error
 		runtime.GOMAXPROCS(runtime.NumCPU())
-		db.DbPlugin{}.OnAppStart()
-		db.Db.SetMaxIdleConns(MaxConnectionCount)
-		if worldStatement, err = db.Db.Prepare(WorldSelect); err != nil {
-			revel.ERROR.Fatalln(err)
-		}
-		if fortuneStatement, err = db.Db.Prepare(FortuneSelect); err != nil {
-			revel.ERROR.Fatalln(err)
-		}
+		db.GorpPlugin{}.OnAppStart()
+		db.Gorp.AddTable(World{}).
+			SetKeys(true, "Id")
+		db.Gorp.AddTable(Fortune{}).
+			SetKeys(true, "Id")
 	})
 }
 
@@ -62,22 +49,26 @@ func (c App) Json() revel.Result {
 }
 
 func (c App) Db(queries int) revel.Result {
-	rowNum := rand.Intn(WorldRowCount) + 1
 	if queries <= 1 {
-		var w World
-		worldStatement.QueryRow(rowNum).Scan(&w.Id, &w.RandomNumber)
-		return c.RenderJson(w)
+		rowNum := rand.Intn(WorldRowCount) + 1
+		w, err := db.Gorp.Get(World{}, rowNum)
+		if err != nil {
+			revel.ERROR.Fatalf("Error scanning world row: %v", err)
+		}
+		return c.RenderJson(w.(*World))
 	}
 
-	ww := make([]World, queries)
+	ww := make([]*World, queries)
 	var wg sync.WaitGroup
 	wg.Add(queries)
 	for i := 0; i < queries; i++ {
 		go func(i int) {
-			err := worldStatement.QueryRow(rowNum).Scan(&ww[i].Id, &ww[i].RandomNumber)
+			rowNum := rand.Intn(WorldRowCount) + 1
+			result, err := db.Gorp.Get(World{}, rowNum)
 			if err != nil {
 				revel.ERROR.Fatalf("Error scanning world row: %v", err)
 			}
+			ww[i] = result.(*World)
 			wg.Done()
 		}(i)
 	}
@@ -86,24 +77,17 @@ func (c App) Db(queries int) revel.Result {
 }
 
 func (c App) Fortune() revel.Result {
-	fortunes := make([]*Fortune, 0, 16)
-
-	rows, err := fortuneStatement.Query()
+	results, err := db.Gorp.Select(Fortune{}, "SELECT * FROM Fortune")
 	if err != nil {
 		revel.ERROR.Fatalf("Error preparing statement: %v", err)
 	}
 
-	i := 0
-	var fortune *Fortune
-	for rows.Next() {
-		fortune = new(Fortune)
-		if err = rows.Scan(&fortune.Id, &fortune.Message); err != nil {
-			revel.ERROR.Fatalf("Error scanning fortune row: %v", err)
-		}
-		fortunes = append(fortunes, fortune)
-		i++
+	var fortunes Fortunes
+	for _, r := range results {
+		fortunes = append(fortunes, r.(*Fortune))
 	}
-	fortunes = append(fortunes, &Fortune{Message: "Additional fortune added at request time."})
+	fortunes = append(fortunes,
+		&Fortune{Message: "Additional fortune added at request time."})
 
 	sort.Sort(ByMessage{fortunes})
 	return c.Render(fortunes)
