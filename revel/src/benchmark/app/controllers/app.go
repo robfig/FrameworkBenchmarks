@@ -1,10 +1,8 @@
 package controllers
 
 import (
-	"database/sql"
-	// _ "github.com/go-sql-driver/mysql"
+	"benchmark/app/db"
 	"github.com/robfig/revel"
-	"github.com/robfig/revel/modules/db/app"
 	"math/rand"
 	"runtime"
 	"sort"
@@ -26,29 +24,15 @@ type Fortune struct {
 }
 
 const (
-	WorldSelect        = "SELECT id,randomNumber FROM World where id=?"
-	FortuneSelect      = "SELECT id,message FROM Fortune"
 	WorldRowCount      = 10000
 	MaxConnectionCount = 100
 )
 
-var (
-	worldStatement   *sql.Stmt
-	fortuneStatement *sql.Stmt
-)
-
 func init() {
+	revel.RegisterPlugin(db.JetPlugin{})
 	revel.OnAppStart(func() {
-		var err error
 		runtime.GOMAXPROCS(runtime.NumCPU())
-		db.DbPlugin{}.OnAppStart()
-		db.Db.SetMaxIdleConns(MaxConnectionCount)
-		if worldStatement, err = db.Db.Prepare(WorldSelect); err != nil {
-			revel.ERROR.Fatalln(err)
-		}
-		if fortuneStatement, err = db.Db.Prepare(FortuneSelect); err != nil {
-			revel.ERROR.Fatalln(err)
-		}
+		//db.Jet.Db.SetMaxIdleConns(MaxConnectionCount)
 	})
 }
 
@@ -62,10 +46,14 @@ func (c App) Json() revel.Result {
 }
 
 func (c App) Db(queries int) revel.Result {
+	const worldSelect = "SELECT id,randomNumber FROM World where id = "
 	rowNum := rand.Intn(WorldRowCount) + 1
 	if queries <= 1 {
 		var w World
-		worldStatement.QueryRow(rowNum).Scan(&w.Id, &w.RandomNumber)
+		err := db.Jet.Query(worldSelect, rowNum).Value(&w)
+		if err != nil {
+			revel.ERROR.Fatalf("Error scanning world row: %v", err)
+		}
 		return c.RenderJson(w)
 	}
 
@@ -74,7 +62,7 @@ func (c App) Db(queries int) revel.Result {
 	wg.Add(queries)
 	for i := 0; i < queries; i++ {
 		go func(i int) {
-			err := worldStatement.QueryRow(rowNum).Scan(&ww[i].Id, &ww[i].RandomNumber)
+			err := db.Jet.Query(worldSelect, rowNum).Value(&ww[i])
 			if err != nil {
 				revel.ERROR.Fatalf("Error scanning world row: %v", err)
 			}
@@ -86,25 +74,13 @@ func (c App) Db(queries int) revel.Result {
 }
 
 func (c App) Fortune() revel.Result {
-	fortunes := make([]*Fortune, 0, 16)
-
-	rows, err := fortuneStatement.Query()
+	const fortuneSelect = "SELECT id,message FROM Fortune"
+	var fortunes Fortunes
+	err := db.Jet.Query(fortuneSelect).Rows(&fortunes)
 	if err != nil {
 		revel.ERROR.Fatalf("Error preparing statement: %v", err)
 	}
-
-	i := 0
-	var fortune *Fortune
-	for rows.Next() {
-		fortune = new(Fortune)
-		if err = rows.Scan(&fortune.Id, &fortune.Message); err != nil {
-			revel.ERROR.Fatalf("Error scanning fortune row: %v", err)
-		}
-		fortunes = append(fortunes, fortune)
-		i++
-	}
 	fortunes = append(fortunes, &Fortune{Message: "Additional fortune added at request time."})
-
 	sort.Sort(ByMessage{fortunes})
 	return c.Render(fortunes)
 }
