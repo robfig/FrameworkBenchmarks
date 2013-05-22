@@ -23,9 +23,7 @@ type Fortune struct {
 	Message string `json:"message"`
 }
 
-const (
-	WorldRowCount = 10000
-)
+const WorldRowCount = 10000
 
 func init() {
 	//revel.RegisterPlugin(db.GorpPlugin{})
@@ -69,6 +67,44 @@ func (c App) Db(queries int) revel.Result {
 				revel.ERROR.Fatalf("Error scanning world row: %v", err)
 			}
 			ww[i] = result.(*World)
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+	return c.RenderJson(ww)
+}
+
+func (c App) Update(queries int) revel.Result {
+	rowNum := rand.Intn(WorldRowCount) + 1
+	if queries <= 1 {
+		var w World
+		w, err := db.Gorp.Get(World{}, rowNum)
+		w.RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
+		_, err := db.Gorp.Update(&w)
+		if err != nil {
+			return revel.ERROR.Fatalf("Error updating row: %s", err)
+		}
+		return c.RenderJson(&w)
+	}
+
+	var (
+		ww = make([]World, queries)
+		wg sync.WaitGroup
+	)
+	wg.Add(queries)
+	for i := 0; i < queries; i++ {
+		go func(i int) {
+			rowNum := rand.Intn(WorldRowCount) + 1
+			result, err := db.Gorp.Get(World{}, rowNum)
+			if err != nil {
+				revel.ERROR.Fatalf("Error scanning world row: %v", err)
+			}
+			ww[i] = result.(*World)
+			ww[i].RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
+			_, err = db.Gorp.Update(&ww[i])
+			if err != nil {
+				revel.ERROR.Fatalf("Error scanning world row: %v", err)
+			}
 			wg.Done()
 		}(i)
 	}
