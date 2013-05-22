@@ -5,6 +5,7 @@ import (
 	"github.com/coocood/qbs"
 	"github.com/robfig/revel"
 	"math/rand"
+	"os"
 	"runtime"
 	"sort"
 	"sync"
@@ -48,26 +49,56 @@ func (c App) Db(queries int) revel.Result {
 	if queries <= 1 {
 		qbs, _ := qbs.GetQbs()
 		defer qbs.Close()
-
-		rowNum := uint16(rand.Intn(WorldRowCount) + 1)
 		var w World
-		w.Id = rowNum
+		w.Id = uint16(rand.Intn(WorldRowCount) + 1)
 		qbs.Find(&w)
 		return c.RenderJson(w)
 	}
 
-	ww := make([]World, queries)
-	var wg sync.WaitGroup
+	var (
+		ww = make([]World, queries)
+		wg sync.WaitGroup
+	)
 	wg.Add(queries)
 	for i := 0; i < queries; i++ {
 		go func(i int) {
 			// Each parallel request requires its own QBS handle.
 			qbs, _ := qbs.GetQbs()
 			defer qbs.Close()
-
-			rowNum := uint16(rand.Intn(WorldRowCount) + 1)
-			ww[i].Id = rowNum
+			ww[i].Id = uint16(rand.Intn(WorldRowCount) + 1)
 			qbs.Find(&ww[i])
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+	return c.RenderJson(ww)
+}
+
+func (c App) Update(queries int) revel.Result {
+	if queries <= 1 {
+		qbs, _ := qbs.GetQbs()
+		defer qbs.Close()
+		var w World
+		w.Id = uint16(rand.Intn(WorldRowCount) + 1)
+		qbs.Find(&w)
+		w.RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
+		qbs.Save(&w)
+		return c.RenderJson(&w)
+	}
+
+	var (
+		ww = make([]World, queries)
+		wg sync.WaitGroup
+	)
+	wg.Add(queries)
+	for i := 0; i < queries; i++ {
+		go func(i int) {
+			qbs, _ := qbs.GetQbs()
+			defer qbs.Close()
+			ww[i].Id = uint16(rand.Intn(WorldRowCount) + 1)
+			qbs.Find(&ww[i])
+			ww[i].RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
+			qbs.Save(&ww[i])
 			wg.Done()
 		}(i)
 	}
