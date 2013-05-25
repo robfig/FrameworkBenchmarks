@@ -15,12 +15,12 @@ type MessageStruct struct {
 }
 
 type World struct {
-	Id           uint16 `json:"id"`
+	Id           uint16 `json:"id" qbs:"pk"`
 	RandomNumber uint16 `json:"randomNumber"`
 }
 
 type Fortune struct {
-	Id      uint16 `json:"id"`
+	Id      uint16 `json:"id" qbs:"pk"`
 	Message string `json:"message"`
 }
 
@@ -45,11 +45,10 @@ func (c App) Json() revel.Result {
 }
 
 func (c App) Db(queries int) revel.Result {
-	qbs, _ := qbs.GetQbs()
-	defer qbs.Close()
-	qbs.Log = true
-
 	if queries <= 1 {
+		qbs, _ := qbs.GetQbs()
+		defer qbs.Close()
+
 		rowNum := uint16(rand.Intn(WorldRowCount) + 1)
 		var w World
 		w.Id = rowNum
@@ -62,6 +61,10 @@ func (c App) Db(queries int) revel.Result {
 	wg.Add(queries)
 	for i := 0; i < queries; i++ {
 		go func(i int) {
+			// Each parallel request requires its own QBS handle.
+			qbs, _ := qbs.GetQbs()
+			defer qbs.Close()
+
 			rowNum := uint16(rand.Intn(WorldRowCount) + 1)
 			ww[i].Id = rowNum
 			qbs.Find(&ww[i])
@@ -75,7 +78,6 @@ func (c App) Db(queries int) revel.Result {
 func (c App) Fortune() revel.Result {
 	qbs, _ := qbs.GetQbs()
 	defer qbs.Close()
-	qbs.Log = true
 
 	var fortunes []*Fortune
 	qbs.FindAll(&fortunes)

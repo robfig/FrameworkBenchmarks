@@ -19,5 +19,13 @@ func Init() {
 		revel.ERROR.Fatal("No db.spec found.")
 	}
 
+	// QBS uses snake case by default; override the name convention.
+	qbs.ColumnNameToFieldName = noConvert
+	qbs.FieldNameToColumnName = noConvert
+	qbs.TableNameToStructName = noConvert
+	qbs.StructNameToTableName = noConvert
+
 	qbs.Register(Driver, Spec, "", qbs.NewMysql())
 }
+
+func noConvert(s string) string { return s }
