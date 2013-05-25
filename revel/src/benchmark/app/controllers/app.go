@@ -5,7 +5,6 @@ import (
 	"github.com/coocood/qbs"
 	"github.com/robfig/revel"
 	"math/rand"
-	"os"
 	"runtime"
 	"sort"
 	"sync"
