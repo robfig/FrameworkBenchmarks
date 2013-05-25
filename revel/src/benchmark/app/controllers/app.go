@@ -14,26 +14,21 @@ type MessageStruct struct {
 }
 
 type World struct {
-	Id           uint16 `json:"id"`
+	Id           uint16 `json:"id" sql:"pk"`
 	RandomNumber uint16 `json:"randomNumber"`
 }
 
 type Fortune struct {
-	Id      uint16 `json:"id"`
+	Id      uint16 `json:"id" sql:"pk"`
 	Message string `json:"message"`
 }
 
 const WorldRowCount = 10000
 
 func init() {
-	//revel.RegisterPlugin(db.GorpPlugin{})
 	revel.OnAppStart(func() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
-		db.GorpPlugin{}.OnAppStart()
-		db.Gorp.AddTable(World{}).
-			SetKeys(true, "Id")
-		db.Gorp.AddTable(Fortune{}).
-			SetKeys(true, "Id")
+		db.Init()
 	})
 }
 
@@ -48,12 +43,14 @@ func (c App) Json() revel.Result {
 
 func (c App) Db(queries int) revel.Result {
 	if queries <= 1 {
-		rowNum := rand.Intn(WorldRowCount) + 1
-		w, err := db.Gorp.Get(World{}, rowNum)
+		hd := db.Hood.Copy()
+		w := make([]World, 1)
+		err := hd.Where("id", "=", rand.Intn(WorldRowCount)+1).
+			Find(&w)
 		if err != nil {
 			revel.ERROR.Fatalf("Error scanning world row: %v", err)
 		}
-		return c.RenderJson(w.(*World))
+		return c.RenderJson(w)
 	}
 
 	ww := make([]*World, queries)
@@ -61,12 +58,12 @@ func (c App) Db(queries int) revel.Result {
 	wg.Add(queries)
 	for i := 0; i < queries; i++ {
 		go func(i int) {
-			rowNum := rand.Intn(WorldRowCount) + 1
-			result, err := db.Gorp.Get(World{}, rowNum)
+			hd := db.Hood.Copy()
+			ww[i] = new(World)
+			err := hd.Where("id", "=", rand.Intn(WorldRowCount)+1).Find(ww[i])
 			if err != nil {
 				revel.ERROR.Fatalf("Error scanning world row: %v", err)
 			}
-			ww[i] = result.(*World)
 			wg.Done()
 		}(i)
 	}
@@ -75,16 +72,16 @@ func (c App) Db(queries int) revel.Result {
 }
 
 func (c App) Update(queries int) revel.Result {
-	rowNum := rand.Intn(WorldRowCount) + 1
 	if queries <= 1 {
-		result, err := db.Gorp.Get(World{}, rowNum)
-		w := result.(*World)
-		w.RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
-		_, err = db.Gorp.Update(w)
+		hd := db.Hood.Copy()
+		w := make([]World, 1)
+		err := hd.Where("id", "=", rand.Intn(WorldRowCount)+1).Find(&w)
+		w[0].RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
+		_, err = hd.Save(&w[0])
 		if err != nil {
 			revel.ERROR.Fatalf("Error updating row: %s", err)
 		}
-		return c.RenderJson(w)
+		return c.RenderJson(w[0])
 	}
 
 	var (
@@ -94,14 +91,14 @@ func (c App) Update(queries int) revel.Result {
 	wg.Add(queries)
 	for i := 0; i < queries; i++ {
 		go func(i int) {
-			rowNum := rand.Intn(WorldRowCount) + 1
-			result, err := db.Gorp.Get(World{}, rowNum)
+			hd := db.Hood.Copy()
+			ww[i] = new(World)
+			err := hd.Where("id", "=", rand.Intn(WorldRowCount)+1).Find(ww[i])
 			if err != nil {
 				revel.ERROR.Fatalf("Error scanning world row: %v", err)
 			}
-			ww[i] = result.(*World)
 			ww[i].RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
-			_, err = db.Gorp.Update(ww[i])
+			_, err = hd.Save(ww[i])
 			if err != nil {
 				revel.ERROR.Fatalf("Error scanning world row: %v", err)
 			}
@@ -113,8 +110,9 @@ func (c App) Update(queries int) revel.Result {
 }
 
 func (c App) Fortune() revel.Result {
+	hd := db.Hood.Copy()
 	var fortunes Fortunes
-	_, err := db.Gorp.Select(&fortunes, "SELECT * FROM Fortune")
+	err := hd.Find(&fortunes)
 	if err != nil {
 		revel.ERROR.Fatalf("Error selecting fortunes: %v", err)
 	}
