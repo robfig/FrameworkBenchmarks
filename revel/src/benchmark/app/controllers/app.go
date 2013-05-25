@@ -77,18 +77,18 @@ func (c App) Db(queries int) revel.Result {
 func (c App) Update(queries int) revel.Result {
 	rowNum := rand.Intn(WorldRowCount) + 1
 	if queries <= 1 {
-		var w World
-		w, err := db.Gorp.Get(World{}, rowNum)
+		result, err := db.Gorp.Get(World{}, rowNum)
+		w := result.(*World)
 		w.RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
-		_, err := db.Gorp.Update(&w)
+		_, err = db.Gorp.Update(w)
 		if err != nil {
-			return revel.ERROR.Fatalf("Error updating row: %s", err)
+			revel.ERROR.Fatalf("Error updating row: %s", err)
 		}
-		return c.RenderJson(&w)
+		return c.RenderJson(w)
 	}
 
 	var (
-		ww = make([]World, queries)
+		ww = make([]*World, queries)
 		wg sync.WaitGroup
 	)
 	wg.Add(queries)
@@ -101,7 +101,7 @@ func (c App) Update(queries int) revel.Result {
 			}
 			ww[i] = result.(*World)
 			ww[i].RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
-			_, err = db.Gorp.Update(&ww[i])
+			_, err = db.Gorp.Update(ww[i])
 			if err != nil {
 				revel.ERROR.Fatalf("Error scanning world row: %v", err)
 			}
@@ -113,14 +113,10 @@ func (c App) Update(queries int) revel.Result {
 }
 
 func (c App) Fortune() revel.Result {
-	results, err := db.Gorp.Select(Fortune{}, "SELECT * FROM Fortune")
-	if err != nil {
-		revel.ERROR.Fatalf("Error preparing statement: %v", err)
-	}
-
 	var fortunes Fortunes
-	for _, r := range results {
-		fortunes = append(fortunes, r.(*Fortune))
+	_, err := db.Gorp.Select(&fortunes, "SELECT * FROM Fortune")
+	if err != nil {
+		revel.ERROR.Fatalf("Error selecting fortunes: %v", err)
 	}
 	fortunes = append(fortunes,
 		&Fortune{Message: "Additional fortune added at request time."})
