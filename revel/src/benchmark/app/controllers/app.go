@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"benchmark/app/db"
+	"github.com/coocood/qbs"
 	"github.com/robfig/revel"
 	"math/rand"
 	"runtime"
@@ -28,14 +29,9 @@ const (
 )
 
 func init() {
-	//revel.RegisterPlugin(db.GorpPlugin{})
 	revel.OnAppStart(func() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
-		db.GorpPlugin{}.OnAppStart()
-		db.Gorp.AddTable(World{}).
-			SetKeys(true, "Id")
-		db.Gorp.AddTable(Fortune{}).
-			SetKeys(true, "Id")
+		db.Init()
 	})
 }
 
@@ -49,26 +45,26 @@ func (c App) Json() revel.Result {
 }
 
 func (c App) Db(queries int) revel.Result {
+	qbs, _ := qbs.GetQbs()
+	defer qbs.Close()
+	qbs.Log = true
+
 	if queries <= 1 {
-		rowNum := rand.Intn(WorldRowCount) + 1
-		w, err := db.Gorp.Get(World{}, rowNum)
-		if err != nil {
-			revel.ERROR.Fatalf("Error scanning world row: %v", err)
-		}
-		return c.RenderJson(w.(*World))
+		rowNum := uint16(rand.Intn(WorldRowCount) + 1)
+		var w World
+		w.Id = rowNum
+		qbs.Find(&w)
+		return c.RenderJson(w)
 	}
 
-	ww := make([]*World, queries)
+	ww := make([]World, queries)
 	var wg sync.WaitGroup
 	wg.Add(queries)
 	for i := 0; i < queries; i++ {
 		go func(i int) {
-			rowNum := rand.Intn(WorldRowCount) + 1
-			result, err := db.Gorp.Get(World{}, rowNum)
-			if err != nil {
-				revel.ERROR.Fatalf("Error scanning world row: %v", err)
-			}
-			ww[i] = result.(*World)
+			rowNum := uint16(rand.Intn(WorldRowCount) + 1)
+			ww[i].Id = rowNum
+			qbs.Find(&ww[i])
 			wg.Done()
 		}(i)
 	}
@@ -77,18 +73,14 @@ func (c App) Db(queries int) revel.Result {
 }
 
 func (c App) Fortune() revel.Result {
-	results, err := db.Gorp.Select(Fortune{}, "SELECT * FROM Fortune")
-	if err != nil {
-		revel.ERROR.Fatalf("Error preparing statement: %v", err)
-	}
+	qbs, _ := qbs.GetQbs()
+	defer qbs.Close()
+	qbs.Log = true
 
-	var fortunes Fortunes
-	for _, r := range results {
-		fortunes = append(fortunes, r.(*Fortune))
-	}
+	var fortunes []*Fortune
+	qbs.FindAll(&fortunes)
 	fortunes = append(fortunes,
 		&Fortune{Message: "Additional fortune added at request time."})
-
 	sort.Sort(ByMessage{fortunes})
 	return c.Render(fortunes)
 }
