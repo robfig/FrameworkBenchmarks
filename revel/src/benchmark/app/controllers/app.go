@@ -24,9 +24,7 @@ type Fortune struct {
 	Message string `json:"message"`
 }
 
-const (
-	WorldRowCount = 10000
-)
+const WorldRowCount = 10000
 
 func init() {
 	revel.OnAppStart(func() {
