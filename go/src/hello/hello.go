@@ -105,7 +105,8 @@ func worldHandler(w http.ResponseWriter, r *http.Request) {
 		wg.Wait()
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(ww)
+	b, _ := json.Marshal(ww)
+	w.Write(b)
 }
 
 func fortuneHandler(w http.ResponseWriter, r *http.Request) {
