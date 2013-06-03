@@ -25,11 +25,12 @@ type Fortune struct {
 }
 
 const (
-	WorldSelect        = "SELECT id,randomNumber FROM World where id=?"
-	FortuneSelect      = "SELECT id,message FROM Fortune"
-	WorldUpdate        = "UPDATE World SET randomNumber = ? where id = ?"
-	WorldRowCount      = 10000
-	MaxConnectionCount = 100
+	WorldSelect            = "SELECT id,randomNumber FROM World where id=?"
+	FortuneSelect          = "SELECT id,message FROM Fortune"
+	WorldUpdate            = "UPDATE World SET randomNumber = ? where id = ?"
+	WorldRowCount          = 10000
+	MaxIdleConnectionCount = 100
+	MaxConnectionCount     = 5000
 )
 
 var (
@@ -43,7 +44,7 @@ func init() {
 		var err error
 		runtime.GOMAXPROCS(runtime.NumCPU())
 		db.Init()
-		db.Db.SetMaxIdleConns(MaxConnectionCount)
+		db.Db.SetMaxIdleConns(MaxIdleConnectionCount)
 		if worldStatement, err = db.Db.Prepare(WorldSelect); err != nil {
 			revel.ERROR.Fatalln(err)
 		}
@@ -76,6 +77,7 @@ func (c App) Db(queries int) revel.Result {
 	ww := make([]World, queries)
 	var wg sync.WaitGroup
 	wg.Add(queries)
+	acquire(queries)
 	for i := 0; i < queries; i++ {
 		go func(i int) {
 			err := worldStatement.QueryRow(rand.Intn(WorldRowCount)+1).
@@ -84,6 +86,7 @@ func (c App) Db(queries int) revel.Result {
 				revel.ERROR.Fatalf("Error scanning world row: %v", err)
 			}
 			wg.Done()
+			release()
 		}(i)
 	}
 	wg.Wait()
@@ -105,6 +108,7 @@ func (c App) Update(queries int) revel.Result {
 		wg sync.WaitGroup
 	)
 	wg.Add(queries)
+	acquire(queries)
 	for i := 0; i < queries; i++ {
 		go func(i int) {
 			rowNum := rand.Intn(WorldRowCount) + 1
@@ -115,6 +119,7 @@ func (c App) Update(queries int) revel.Result {
 			ww[i].RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
 			updateStatement.Exec(ww[i].RandomNumber, ww[i].Id)
 			wg.Done()
+			release()
 		}(i)
 	}
 	wg.Wait()
@@ -153,3 +158,43 @@ func (s Fortunes) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 type ByMessage struct{ Fortunes }
 
 func (s ByMessage) Less(i, j int) bool { return s.Fortunes[i].Message < s.Fortunes[j].Message }
+
+// Utility for limiting in-flight queries to MaxConnectionLimit
+
+var (
+	conns   int
+	connMu  sync.Mutex
+	waiting []*Wait
+)
+
+type Wait struct {
+	n    int
+	cond *sync.Cond
+}
+
+func acquire(n int) {
+	var w *Wait
+	connMu.Lock()
+	if conns+n > MaxConnectionCount {
+		w := &Wait{n, sync.NewCond(&sync.Mutex{})}
+		waiting = append(waiting, w)
+	}
+	connMu.Unlock()
+	if w != nil {
+		w.cond.Wait()
+	}
+}
+
+func release() {
+	var w *Wait
+	connMu.Lock()
+	conns--
+	if len(waiting) > 0 && waiting[0].n <= MaxConnectionCount-conns {
+		w, waiting = waiting[0], waiting[1:]
+		conns += w.n
+	}
+	connMu.Unlock()
+	if w != nil {
+		w.cond.Signal()
+	}
+}
