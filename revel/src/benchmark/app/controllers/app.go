@@ -25,12 +25,11 @@ type Fortune struct {
 }
 
 const (
-	WorldSelect            = "SELECT id,randomNumber FROM World where id=?"
-	FortuneSelect          = "SELECT id,message FROM Fortune"
-	WorldUpdate            = "UPDATE World SET randomNumber = ? where id = ?"
-	WorldRowCount          = 10000
-	MaxIdleConnectionCount = 100
-	MaxConnectionCount     = 5000
+	WorldSelect        = "SELECT id,randomNumber FROM World where id=?"
+	FortuneSelect      = "SELECT id,message FROM Fortune"
+	WorldUpdate        = "UPDATE World SET randomNumber = ? where id = ?"
+	WorldRowCount      = 10000
+	MaxConnectionCount = 5000
 )
 
 var (
@@ -44,7 +43,7 @@ func init() {
 		var err error
 		runtime.GOMAXPROCS(runtime.NumCPU())
 		db.Init()
-		db.Db.SetMaxIdleConns(MaxIdleConnectionCount)
+		db.Db.SetMaxIdleConns(MaxConnectionCount)
 		if worldStatement, err = db.Db.Prepare(WorldSelect); err != nil {
 			revel.ERROR.Fatalln(err)
 		}
@@ -68,7 +67,6 @@ func (c App) Json() revel.Result {
 
 func (c App) Db(queries int) revel.Result {
 	if queries <= 1 {
-		rowNum := rand.Intn(WorldRowCount) + 1
 		var w World
 		worldStatement.QueryRow(rand.Intn(WorldRowCount)+1).Scan(&w.Id, &w.RandomNumber)
 		return c.RenderJson(w)
@@ -95,9 +93,8 @@ func (c App) Db(queries int) revel.Result {
 
 func (c App) Update(queries int) revel.Result {
 	if queries <= 1 {
-		rowNum := rand.Intn(WorldRowCount) + 1
 		var w World
-		worldStatement.QueryRow(rowNum).Scan(&w.Id, &w.RandomNumber)
+		worldStatement.QueryRow(rand.Intn(WorldRowCount)+1).Scan(&w.Id, &w.RandomNumber)
 		w.RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
 		updateStatement.Exec(w.RandomNumber, w.Id)
 		return c.RenderJson(&w)
@@ -111,8 +108,8 @@ func (c App) Update(queries int) revel.Result {
 	acquire(queries)
 	for i := 0; i < queries; i++ {
 		go func(i int) {
-			rowNum := rand.Intn(WorldRowCount) + 1
-			err := worldStatement.QueryRow(rowNum).Scan(&ww[i].Id, &ww[i].RandomNumber)
+			err := worldStatement.QueryRow(rand.Intn(WorldRowCount)+1).
+				Scan(&ww[i].Id, &ww[i].RandomNumber)
 			if err != nil {
 				revel.ERROR.Fatalf("Error scanning world row: %v", err)
 			}
