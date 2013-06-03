@@ -35,7 +35,7 @@ const (
 	WorldUpdate        = "UPDATE World SET randomNumber = ? where id = ?"
 	FortuneSelect      = "SELECT id, message FROM Fortune;"
 	WorldRowCount      = 10000
-	MaxConnectionCount = 100
+	MaxConnectionCount = 5000
 )
 
 var (
@@ -93,6 +93,7 @@ func worldHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		var wg sync.WaitGroup
 		wg.Add(n)
+		acquire(n)
 		for i := 0; i < n; i++ {
 			go func(i int) {
 				err := worldStatement.QueryRow(rand.Intn(WorldRowCount)+1).Scan(&ww[i].Id, &ww[i].RandomNumber)
@@ -100,6 +101,7 @@ func worldHandler(w http.ResponseWriter, r *http.Request) {
 					log.Fatalf("Error scanning world row: %v", err)
 				}
 				wg.Done()
+				release()
 			}(i)
 		}
 		wg.Wait()
@@ -144,6 +146,7 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		var wg sync.WaitGroup
 		wg.Add(n)
+		acquire(n)
 		for i := 0; i < n; i++ {
 			go func(i int) {
 				err := worldStatement.QueryRow(rand.Intn(WorldRowCount)+1).Scan(&ww[i].Id, &ww[i].RandomNumber)
@@ -153,6 +156,7 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 					log.Fatalf("Error scanning world row: %v", err)
 				}
 				wg.Done()
+				release()
 			}(i)
 		}
 		wg.Wait()
@@ -171,3 +175,43 @@ func (s Fortunes) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 type ByMessage struct{ Fortunes }
 
 func (s ByMessage) Less(i, j int) bool { return s.Fortunes[i].Message < s.Fortunes[j].Message }
+
+// Utility for limiting in-flight queries to MaxConnectionLimit
+
+var (
+	conns   int
+	connMu  sync.Mutex
+	waiting []*Wait
+)
+
+type Wait struct {
+	n    int
+	cond *sync.Cond
+}
+
+func acquire(n int) {
+	var w *Wait
+	connMu.Lock()
+	if conns+n > MaxConnectionCount {
+		w := &Wait{n, sync.NewCond(&sync.Mutex{})}
+		waiting = append(waiting, w)
+	}
+	connMu.Unlock()
+	if w != nil {
+		w.cond.Wait()
+	}
+}
+
+func release() {
+	var w *Wait
+	connMu.Lock()
+	conns--
+	if len(waiting) > 0 && waiting[0].n <= MaxConnectionCount-conns {
+		w, waiting = waiting[0], waiting[1:]
+		conns += w.n
+	}
+	connMu.Unlock()
+	if w != nil {
+		w.cond.Signal()
+	}
+}
