@@ -11,13 +11,8 @@ var (
 	Gorp *gorp.DbMap
 )
 
-type GorpPlugin struct {
-	db.DbPlugin
-}
-
-func (p GorpPlugin) OnAppStart() {
-	p.DbPlugin.OnAppStart()
+func Init() {
+	db.Init()
 	Gorp = &gorp.DbMap{Db: db.Db, Dialect: gorp.MySQLDialect{}}
 	Db = db.Db
-	db.Db.SetMaxIdleConns(100)
 }

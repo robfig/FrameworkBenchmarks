@@ -23,13 +23,21 @@ type Fortune struct {
 	Message string `json:"message"`
 }
 
-const WorldRowCount = 10000
+const (
+	WorldRowCount      = 10000
+	MaxConnectionCount = 256
+)
 
 func init() {
-	//revel.RegisterPlugin(db.GorpPlugin{})
+	revel.Filters = []revel.Filter{
+		revel.RouterFilter,
+		revel.ParamsFilter,
+		revel.ActionInvoker,
+	}
 	revel.OnAppStart(func() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
-		db.GorpPlugin{}.OnAppStart()
+		db.Init()
+		db.Db.SetMaxIdleConns(MaxConnectionCount)
 		db.Gorp.AddTable(World{}).
 			SetKeys(true, "Id")
 		db.Gorp.AddTable(Fortune{}).
@@ -48,8 +56,7 @@ func (c App) Json() revel.Result {
 
 func (c App) Db(queries int) revel.Result {
 	if queries <= 1 {
-		rowNum := rand.Intn(WorldRowCount) + 1
-		w, err := db.Gorp.Get(World{}, rowNum)
+		w, err := db.Gorp.Get(World{}, rand.Intn(WorldRowCount)+1)
 		if err != nil {
 			revel.ERROR.Fatalf("Error scanning world row: %v", err)
 		}
@@ -61,8 +68,7 @@ func (c App) Db(queries int) revel.Result {
 	wg.Add(queries)
 	for i := 0; i < queries; i++ {
 		go func(i int) {
-			rowNum := rand.Intn(WorldRowCount) + 1
-			result, err := db.Gorp.Get(World{}, rowNum)
+			result, err := db.Gorp.Get(World{}, rand.Intn(WorldRowCount)+1)
 			if err != nil {
 				revel.ERROR.Fatalf("Error scanning world row: %v", err)
 			}
@@ -75,9 +81,8 @@ func (c App) Db(queries int) revel.Result {
 }
 
 func (c App) Update(queries int) revel.Result {
-	rowNum := rand.Intn(WorldRowCount) + 1
 	if queries <= 1 {
-		result, err := db.Gorp.Get(World{}, rowNum)
+		result, err := db.Gorp.Get(World{}, rand.Intn(WorldRowCount)+1)
 		w := result.(*World)
 		w.RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
 		_, err = db.Gorp.Update(w)
@@ -94,8 +99,7 @@ func (c App) Update(queries int) revel.Result {
 	wg.Add(queries)
 	for i := 0; i < queries; i++ {
 		go func(i int) {
-			rowNum := rand.Intn(WorldRowCount) + 1
-			result, err := db.Gorp.Get(World{}, rowNum)
+			result, err := db.Gorp.Get(World{}, rand.Intn(WorldRowCount)+1)
 			if err != nil {
 				revel.ERROR.Fatalf("Error scanning world row: %v", err)
 			}
