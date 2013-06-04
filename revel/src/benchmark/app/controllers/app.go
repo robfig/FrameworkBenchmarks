@@ -24,7 +24,10 @@ type Fortune struct {
 	Message string `json:"message"`
 }
 
-const WorldRowCount = 10000
+const (
+	WorldRowCount      = 10000
+	MaxIdleConnections = 256
+)
 
 func init() {
 	revel.Filters = []revel.Filter{
@@ -35,6 +38,7 @@ func init() {
 	revel.OnAppStart(func() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 		db.Init()
+		qbs.ChangePoolSize(MaxIdleConnections)
 	})
 }
 
