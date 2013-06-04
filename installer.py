@@ -7,8 +7,11 @@ class Installer:
   # install_software
   ############################################################
   def install_software(self):
-    self.__install_server_software()
-    self.__install_client_software()
+    if self.benchmarker.install == 'all' or self.benchmarker.install == 'server':
+        self.__install_server_software()
+
+    if self.benchmarker.install == 'all' or self.benchmarker.install == 'client':
+        self.__install_client_software()
   ############################################################
   # End install_software
   ############################################################
@@ -22,14 +25,22 @@ class Installer:
     #######################################
     self.__run_command("sudo apt-get update", True)
     self.__run_command("sudo apt-get upgrade", True)
-    self.__run_command("sudo apt-get install build-essential libpcre3 libpcre3-dev libpcrecpp0 libssl-dev zlib1g-dev python-software-properties unzip git-core libcurl4-openssl-dev libbz2-dev libmysqlclient-dev mongodb-clients libreadline6-dev libyaml-dev libsqlite3-dev sqlite3 libxml2-dev libxslt-dev libgdbm-dev ncurses-dev automake libffi-dev htop libtool bison libevent-dev libgstreamer-plugins-base0.10-0 libgstreamer0.10-0 liborc-0.4-0 libwxbase2.8-0 libwxgtk2.8-0 libgnutls-dev libjson0-dev libmcrypt-dev libicu-dev cmake mercurial", True)
-
+    self.__run_command("sudo apt-get install build-essential libpcre3 libpcre3-dev libpcrecpp0 libssl-dev zlib1g-dev python-software-properties unzip git-core libcurl4-openssl-dev libbz2-dev libmysqlclient-dev mongodb-clients libreadline6-dev libyaml-dev libsqlite3-dev sqlite3 libxml2-dev libxslt-dev libgdbm-dev ncurses-dev automake libffi-dev htop libtool bison libevent-dev libgstreamer-plugins-base0.10-0 libgstreamer0.10-0 liborc-0.4-0 libwxbase2.8-0 libwxgtk2.8-0 libgnutls-dev libjson0-dev libmcrypt-dev libicu-dev cmake gettext curl", True)
+    self.__run_command("sudo add-apt-repository ppa:ubuntu-toolchain-r/test", True)
+    self.__run_command("sudo apt-get update", True)
+    self.__run_command("sudo apt-get install gcc-4.8 g++-4.8", True)
+    
     self.__run_command("cp ../config/benchmark_profile ../../.bash_profile")
     self.__run_command("sudo sh -c \"echo '*               soft    nofile          8192' >> /etc/security/limits.conf\"")
 
     #######################################
     # Languages
     #######################################
+
+    #
+    # Dart
+    #
+    self.__run_command("curl https://storage.googleapis.com/dart-editor-archive-integration/latest/dartsdk-linux-64.tar.gz | tar xvz")
 
     #
     # Erlang
@@ -43,13 +54,18 @@ class Installer:
     # Python
     #
 
-    self.__run_command("curl http://www.python.org/ftp/python/2.7.3/Python-2.7.3.tgz | tar xvz")
-    self.__run_command("./configure", cwd="Python-2.7.3")
-    self.__run_command("sudo make install", cwd="Python-2.7.3")
-    self.__run_command("curl http://pypi.python.org/packages/source/s/setuptools/setuptools-0.6c11.tar.gz | tar xvz")
-    self.__run_command("sudo python setup.py install", cwd="setuptools-0.6c11")
-    self.__run_command("curl http://pypi.python.org/packages/source/p/pip/pip-1.1.tar.gz | tar xvz")
-    self.__run_command("sudo python setup.py install", cwd="pip-1.1")
+    self.__run_command("curl -L http://bitbucket.org/pypy/pypy/downloads/pypy-2.0-linux64.tar.bz2 | tar xvj")
+    self.__run_command("curl http://www.python.org/ftp/python/2.7.4/Python-2.7.4.tgz | tar xvz")
+    self.__run_command("./configure", cwd="Python-2.7.4")
+    self.__run_command("make -j", cwd="Python-2.7.4")
+    self.__run_command("sudo make install", cwd="Python-2.7.4")
+    self.__run_command("curl https://pypi.python.org/packages/source/d/distribute/distribute-0.6.38.tar.gz | tar xvz")
+    # run pypy before python. (`setup.py install` fails after `sudo setup.py install`)
+    self.__run_command("../pypy-2.0/bin/pypy setup.py install", cwd="distribute-0.6.38")
+    self.__run_command("sudo python setup.py install", cwd="distribute-0.6.38")
+    self.__run_command("curl https://pypi.python.org/packages/source/p/pip/pip-1.3.1.tar.gz | tar xvz")
+    self.__run_command("../pypy-2.0/bin/pypy setup.py install", cwd="pip-1.3.1")
+    self.__run_command("sudo python setup.py install", cwd="pip-1.3.1")
     self.__run_command("sudo pip install MySQL-python==1.2.4")
     self.__run_command("sudo pip install simplejson==3.0.7")
     self.__run_command("curl http://initd.org/psycopg/tarballs/PSYCOPG-2-5/psycopg2-2.5.tar.gz | tar xvz")
@@ -57,12 +73,13 @@ class Installer:
     self.__run_command("git clone https://github.com/iiilx/django-psycopg2-pool.git")
     self.__run_command("sudo python setup.py install", cwd="django-psycopg2-pool")
     self.__run_command("sudo pip install --upgrade numpy==1.7.1")
+    self.__run_command("pypy-2.0/bin/pip install PyMySQL==0.5")
 
     #
     # nodejs
     #
 
-    self.__run_command("curl http://nodejs.org/dist/v0.10.2/node-v0.10.2-linux-x64.tar.gz | tar xvz")
+    self.__run_command("curl http://nodejs.org/dist/v0.10.8/node-v0.10.8-linux-x64.tar.gz | tar xvz")
 
     #
     # Java
@@ -79,27 +96,29 @@ class Installer:
     self.__run_command("echo rvm_auto_reload_flag=2 >> ~/.rvmrc")
     subprocess.call(["bash", "-c", "source ~/.rvm/scripts/'rvm' && rvm install 2.0.0-p0"])
     subprocess.call(["bash", "-c", "source ~/.rvm/scripts/'rvm' && rvm 2.0.0-p0 do gem install bundler"])
-    subprocess.call(["bash", "-c", "source ~/.rvm/scripts/'rvm' && rvm install jruby-1.7.3"])
-    subprocess.call(["bash", "-c", "source ~/.rvm/scripts/'rvm' && rvm jruby-1.7.3 do gem install bundler"])
+    subprocess.call(["bash", "-c", "source ~/.rvm/scripts/'rvm' && rvm install jruby-1.7.4"])
+    subprocess.call(["bash", "-c", "source ~/.rvm/scripts/'rvm' && rvm jruby-1.7.4 do gem install bundler"])
 
     # We need a newer version of jruby-rack
     self.__run_command("git clone git://github.com/jruby/jruby-rack.git")
-    subprocess.call(["bash", "-c", "cd installs/jruby-rack && source ~/.rvm/scripts/'rvm' && rvm jruby-1.7.3 do bundle install"])
-    subprocess.call(["bash", "-c", "cd installs/jruby-rack && source ~/.rvm/scripts/'rvm' && rvm jruby-1.7.3 do jruby -S bundle exec rake clean gem SKIP_SPECS=true"])
-    subprocess.call(["bash", "-c", "cd installs/jruby-rack/target && source ~/.rvm/scripts/'rvm' && rvm jruby-1.7.3 do gem install jruby-rack-1.2.0.SNAPSHOT.gem"])
+    subprocess.call(["bash", "-c", "cd installs/jruby-rack && source ~/.rvm/scripts/'rvm' && rvm jruby-1.7.4 do bundle install"])
+    subprocess.call(["bash", "-c", "cd installs/jruby-rack && source ~/.rvm/scripts/'rvm' && rvm jruby-1.7.4 do jruby -S bundle exec rake clean gem SKIP_SPECS=true"])
+    subprocess.call(["bash", "-c", "cd installs/jruby-rack/target && source ~/.rvm/scripts/'rvm' && rvm jruby-1.7.4 do gem install jruby-rack-1.2.0.SNAPSHOT.gem"])
 
     #
     # go
     #
 
-    self.__run_command("curl http://go.googlecode.com/files/go1.1rc1.linux-amd64.tar.gz | tar xvz")
+    self.__run_command("curl http://go.googlecode.com/files/go1.1.linux-amd64.tar.gz | tar xvz")
 
     #
     # Perl
     #
-
+    
+    self.__run_command("curl http://downloads.activestate.com/ActivePerl/releases/5.16.3.1603/ActivePerl-5.16.3.1603-x86_64-linux-glibc-2.3.5-296746.tar.gz | tar xvz");
+    self.__run_command("sudo ./install.sh --license-accepted --prefix /opt/ActivePerl-5.16 --no-install-html", cwd="ActivePerl-5.16.3.1603-x86_64-linux-glibc-2.3.5-296746", send_yes=True)
     self.__run_command("curl -L http://cpanmin.us | perl - --sudo App::cpanminus")
-    self.__run_command("cpanm -S DBI DBD::mysql Kelp Dancer Mojolicious Kelp::Module::JSON::XS Dancer::Plugin::Database Starman Plack JSON")
+    self.__run_command("cpanm -f -S DBI DBD::mysql Kelp Dancer Mojolicious Kelp::Module::JSON::XS Dancer::Plugin::Database Starman Plack JSON Web::Simple DBD::Pg JSON::XS EV HTTP::Parser::XS Monoceros")
 
     #
     # php
@@ -122,6 +141,9 @@ class Installer:
     self.__run_command("git clone git://github.com/phalcon/cphalcon.git")
     self.__run_command("sudo ./install", cwd="cphalcon/build")
 
+    # YAF
+    self.__run_command("sudo pecl install yaf")
+
     #
     # Haskell
     #
@@ -139,29 +161,47 @@ class Installer:
     self.__run_command("sudo ringo-admin install ringo/stick")
     self.__run_command("sudo ringo-admin install oberhamsi/reinhardt")
     self.__run_command("sudo ringo-admin install grob/ringo-sqlstore")
+    self.__run_command("sudo ringo-admin install amigrave/ringo-mongodb")
 
+    #
+    # Mono
+    #
+    self.__run_command("git clone git://github.com/mono/mono")
+    self.__run_command("git checkout mono-3.0.10", cwd="mono")
+    self.__run_command("./autogen.sh --prefix=/usr/local", cwd="mono")
+    self.__run_command("make get-monolite-latest", cwd="mono")
+    self.__run_command("make EXTERNAL_MCS=${PWD}/mcs/class/lib/monolite/gmcs.exe", cwd="mono")
+    self.__run_command("sudo make install", cwd="mono")
+    
+    self.__run_command("mozroots --import --sync")
+
+    self.__run_command("git clone git://github.com/mono/xsp")
+    self.__run_command("git checkout 3.0", cwd="xsp")
+    self.__run_command("./autogen.sh --prefix=/usr/local", cwd="xsp")
+    self.__run_command("make", cwd="xsp")
+    self.__run_command("sudo make install", cwd="xsp")
+    
+    # 
+    # Nimrod
+    # 
+    self.__run_command("wget http://www.nimrod-code.org/download/nimrod_0.9.2.zip")
+    self.__run_command("unzip nimrod_0.9.2.zip")
+    self.__run_command("chmod +x build.sh", cwd="nimrod")
+    self.__run_command("./build.sh", cwd="nimrod")
+    self.__run_command("chmod +x install.sh", cwd="nimrod")
+    self.__run_command("sudo ./install.sh /usr/bin", cwd="nimrod")
+    
     #######################################
     # Webservers
     #######################################
 
     #
-    # Apache
-    #
-
-    self.__run_command("sudo apt-get install apache2 libapache2-mod-php5", True)
-    self.__run_command("sudo mv /etc/apache2/apache2.conf /etc/apache2/apache2.conf.orig")
-    self.__run_command("sudo sh -c \"cat ../config/apache2.conf > /etc/apache2/apache2.conf\"")
-    self.__run_command("sudo mv /etc/apache2/ports.conf /etc/apache2/ports.conf.orig")
-    self.__run_command("sudo sh -c \"cat ../config/ports.conf > /etc/apache2/ports.conf\"")
-    self.__run_command("sudo /etc/init.d/apache2 stop")
-
-    #
     # Nginx
     #
-    self.__run_command("curl http://nginx.org/download/nginx-1.4.0.tar.gz | tar xvz")
-    self.__run_command("./configure", cwd="nginx-1.4.0")
-    self.__run_command("make", cwd="nginx-1.4.0")
-    self.__run_command("sudo make install", cwd="nginx-1.4.0")
+    self.__run_command("curl http://nginx.org/download/nginx-1.4.1.tar.gz | tar xvz")
+    self.__run_command("./configure", cwd="nginx-1.4.1")
+    self.__run_command("make", cwd="nginx-1.4.1")
+    self.__run_command("sudo make install", cwd="nginx-1.4.1")
 
     #
     # Openresty (nginx with openresty stuff)
@@ -175,7 +215,7 @@ class Installer:
     # Gunicorn
     #
 
-    self.__run_command("sudo easy_install -U 'gunicorn==0.17.2'")
+    self.__run_command("sudo easy_install -U 'gunicorn==0.17.4'")
     self.__run_command("sudo pip install --upgrade meinheld")
     self.__run_command("sudo easy_install -U 'eventlet==0.12.1'")
     self.__run_command("sudo pip install --upgrade 'gevent==0.13.8'")
@@ -185,55 +225,25 @@ class Installer:
     #
 
     self.__run_command("sudo cp -r /usr/lib/jvm/java-1.7.0-openjdk-amd64/include /usr/lib/jvm/java-1.7.0-openjdk-amd64/jre/bin/")
-    self.__run_command("curl http://www.caucho.com/download/resin-4.0.34.tar.gz | tar xvz")
-    self.__run_command("./configure --prefix=`pwd`", cwd="resin-4.0.34")
-    self.__run_command("make", cwd="resin-4.0.34")
-    self.__run_command("make install", cwd="resin-4.0.34")
-    self.__run_command("mv conf/resin.properties conf/resin.properties.orig", cwd="resin-4.0.34")
-    self.__run_command("cat ../config/resin.properties > resin-4.0.34/conf/resin.properties")
-
-    #
-    # Passenger
-    #
-
-    self.__run_command("git clone https://github.com/FooBarWidget/passenger.git")
-    self.__run_command("git checkout 65d36dbbadd399f65d81f5febadce9b0c6c1a430", cwd="passenger")
-    subprocess.call(["bash", "-c", "cd installs/passenger && source ~/.rvm/scripts/'rvm' && rvm 2.0.0-p0 do gem build passenger.gemspec"])
-    subprocess.call(["bash", "-c", "cd installs/passenger && source ~/.rvm/scripts/'rvm' && rvm 2.0.0-p0 do gem install passenger-3.9.5.rc3.gem"])
-
-    ##############################
-    # Tomcat
-    # We don't use tomcat in our tests yet, but this is here to remind us of how we
-    # installed the apr connector
-    ##############################
-    self.__run_command("curl http://apache.cs.utah.edu/tomcat/tomcat-7/v7.0.35/bin/apache-tomcat-7.0.35.tar.gz | tar xvz")
-    #wget http://apache.cs.utah.edu/tomcat/tomcat-7/v7.0.35/bin/apache-tomcat-7.0.35.tar.gz
-    #tar -xvzf apache-tomcat-7.0.35.tar.gz
-    #rm apache-tomcat-7.0.35.tar.gz
-    # use the native APR
-    # http://evgeny-goldin.com/blog/ubuntu-installing-apr-tomcat/
-    #wget http://apache.claz.org/apr/apr-1.4.6.tar.gz
-    #tar xvf apr-1.4.6.tar.gz
-    #cd apr-1.4.6
-    #./configure
-    #make
-    #sudo make install
-    #cd ..
-    #rm apr-1.4.6.tar.gz
-    #wget http://apache.tradebit.com/pub/tomcat/tomcat-connectors/native/1.1.24/source/tomcat-native-1.1.24-src.tar.gz
-    #tar xvf tomcat-native-1.1.24-src.tar.gz
-    #cd tomcat-native-1.1.24-src/jni/native
-    #./configure --with-apr=/usr/local/apr
-    #make
-    #sudo make install
-    #cd ../../..
-    #rm tomcat-native-1.1.24-src.tar.gz
+    self.__run_command("curl http://www.caucho.com/download/resin-4.0.36.tar.gz | tar xvz")
+    self.__run_command("./configure --prefix=`pwd`", cwd="resin-4.0.36")
+    self.__run_command("make", cwd="resin-4.0.36")
+    self.__run_command("make install", cwd="resin-4.0.36")
+    self.__run_command("mv conf/resin.properties conf/resin.properties.orig", cwd="resin-4.0.36")
+    self.__run_command("cat ../config/resin.properties > resin-4.0.36/conf/resin.properties")
 
     ##############################################################
     #
     # Frameworks
     #
     ##############################################################
+
+    ##############################
+    # Tornado
+    ##############################
+    packages = "tornado==3.0.1 motor==0.1 pymongo==2.5"
+    self.__run_command("sudo pip install " + packages)
+    self.__run_command("pypy-2.0/bin/pip install " + packages)
 
     ##############################
     # Django
@@ -254,7 +264,9 @@ class Installer:
     ##############################
     # Flask
     ##############################
-    self.__run_command("sudo pip install flask flask-sqlalchemy")
+    packages = "flask==0.9 flask-sqlalchemy==0.16 sqlalchemy==0.8.1 jinja2==2.6 werkzeug==0.8.3"
+    self.__run_command("sudo pip install " + packages)
+    self.__run_command("pypy-2.0/bin/pip install " + packages)
 
     ##############################
     # Bottle
@@ -264,9 +276,9 @@ class Installer:
     ##############################
     # Play 2
     ##############################
-    self.__run_command("wget http://downloads.typesafe.com/play/2.1.1/play-2.1.1.zip")
-    self.__run_command("unzip -o play-2.1.1.zip")
-    self.__run_command("rm play-2.1.1.zip")
+    self.__run_command("wget http://downloads.typesafe.com/play/2.1.2-RC1/play-2.1.2-RC1.zip")
+    self.__run_command("unzip -o play-2.1.2-RC1.zip")
+    self.__run_command("rm play-2.1.2-RC1.zip")
 
     ##############################
     # Play 1
@@ -290,6 +302,11 @@ class Installer:
     self.__run_command("cabal update")
     self.__run_command("cabal install yesod persistent-mysql")
 
+    ##############################
+    # Jester
+    ##############################
+    self.__run_command("git clone git://github.com/dom96/jester.git jester/jester")
+
     ##############################################################
     #
     # System Tools
@@ -299,7 +316,8 @@ class Installer:
     ##############################
     # Maven
     ##############################
-    self.__run_command("sudo apt-get install maven2", send_yes=True)
+    # self.__run_command("sudo apt-get install maven2", send_yes=True)
+    self.__run_command("curl www.us.apache.org/dist/maven/maven-3/3.0.5/binaries/apache-maven-3.0.5-bin.tar.gz | tar xvz")
 
     ##############################
     # Leiningen
@@ -327,6 +345,9 @@ class Installer:
     yes | sudo apt-get install build-essential git libev-dev libpq-dev libreadline6-dev postgresql
     sudo sh -c "echo '*               soft    nofile          8192' >> /etc/security/limits.conf"
 
+    sudo mkdir -p /ssd
+    sudo mkdir -p /ssd/log
+
     ##############################
     # MySQL
     ##############################
@@ -335,10 +356,16 @@ class Installer:
 
     yes | sudo apt-get install mysql-server
 
+    sudo stop mysql
     # use the my.cnf file to overwrite /etc/mysql/my.cnf
     sudo mv /etc/mysql/my.cnf /etc/mysql/my.cnf.orig
     sudo mv my.cnf /etc/mysql/my.cnf
-    sudo restart mysql
+
+    sudo cp -R -p /var/lib/mysql /ssd/
+    sudo cp -R -p /var/log/mysql /ssd/log
+    sudo cp usr.sbin.mysqld /etc/apparmor.d/
+    sudo /etc/init.d/apparmor reload
+    sudo start mysql
 
     # Insert data
     mysql -uroot -psecret < create.sql
@@ -350,20 +377,12 @@ class Installer:
     sudo -u postgres psql template1 < create-postgres-database.sql
     sudo -u benchmarkdbuser psql hello_world < create-postgres.sql
 
+    sudo -u postgres -H /etc/init.d/postgresql stop
     sudo mv postgresql.conf /etc/postgresql/9.1/main/postgresql.conf
     sudo mv pg_hba.conf /etc/postgresql/9.1/main/pg_hba.conf
-    sudo -u postgres -H /etc/init.d/postgresql restart
 
-    ##############################
-    # Weighttp
-    ##############################
-
-    git clone git://git.lighttpd.net/weighttp
-    cd weighttp
-    ./waf configure
-    ./waf build
-    sudo ./waf install
-    cd ~
+    sudo cp -R -p /var/lib/postgresql/9.1/main /ssd/postgresql
+    sudo -u postgres -H /etc/init.d/postgresql start
 
     ##############################
     # wrk
@@ -378,14 +397,17 @@ class Installer:
     ##############################
     # MongoDB
     ##############################
-    sudo apt-key adv --keyserver keyserver.ubuntu.com --recv 7F0CEB10
+    sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 7F0CEB10
     sudo cp 10gen.list /etc/apt/sources.list.d/10gen.list
     sudo apt-get update
     yes | sudo apt-get install mongodb-10gen
 
+    sudo stop mongodb
     sudo mv /etc/mongodb.conf /etc/mongodb.conf.orig
     sudo mv mongodb.conf /etc/mongodb.conf
-    sudo restart mongodb
+    sudo cp -R -p /var/lib/mongodb /ssd/
+    sudo cp -R -p /var/log/mongodb /ssd/log/
+    sudo start mongodb
     """
     p = subprocess.Popen(self.benchmarker.ssh_string.split(" "), stdin=subprocess.PIPE)
     p.communicate(remote_script)

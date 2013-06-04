@@ -25,13 +25,18 @@ type Fortune struct {
 
 const (
 	WorldRowCount      = 10000
-	MaxConnectionCount = 100
+	MaxConnectionCount = 256
 )
 
 func init() {
-	revel.RegisterPlugin(db.JetPlugin{})
+	revel.Filters = []revel.Filter{
+		revel.RouterFilter,
+		revel.ParamsFilter,
+		revel.ActionInvoker,
+	}
 	revel.OnAppStart(func() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
+		db.Init()
 		//db.Jet.Db.SetMaxIdleConns(MaxConnectionCount)
 	})
 }
@@ -47,10 +52,9 @@ func (c App) Json() revel.Result {
 
 func (c App) Db(queries int) revel.Result {
 	const worldSelect = "SELECT id,randomNumber FROM World where id = "
-	rowNum := rand.Intn(WorldRowCount) + 1
 	if queries <= 1 {
 		var w World
-		err := db.Jet.Query(worldSelect, rowNum).Value(&w)
+		err := db.Jet.Query(worldSelect, rand.Intn(WorldRowCount)+1).Value(&w)
 		if err != nil {
 			revel.ERROR.Fatalf("Error scanning world row: %v", err)
 		}
@@ -62,7 +66,7 @@ func (c App) Db(queries int) revel.Result {
 	wg.Add(queries)
 	for i := 0; i < queries; i++ {
 		go func(i int) {
-			err := db.Jet.Query(worldSelect, rowNum).Value(&ww[i])
+			err := db.Jet.Query(worldSelect, rand.Intn(WorldRowCount)+1).Value(&ww[i])
 			if err != nil {
 				revel.ERROR.Fatalf("Error scanning world row: %v", err)
 			}
@@ -73,10 +77,42 @@ func (c App) Db(queries int) revel.Result {
 	return c.RenderJson(ww)
 }
 
+func (c App) Update(queries int) revel.Result {
+	const worldSelect = "SELECT id,randomNumber FROM World where id = "
+	if queries <= 1 {
+		var w World
+		err := db.Jet.Query(worldSelect, rand.Intn(WorldRowCount)+1).Value(&w)
+		if err != nil {
+			revel.ERROR.Fatalf("Error scanning world row: %v", err)
+		}
+		w.RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
+		// updateStatement.Exec(w.RandomNumber, w.Id)  TODO: Update row
+		return c.RenderJson(&w)
+	}
+
+	var (
+		ww = make([]World, queries)
+		wg sync.WaitGroup
+	)
+	wg.Add(queries)
+	for i := 0; i < queries; i++ {
+		go func(i int) {
+			err := db.Jet.Query(worldSelect, rand.Intn(WorldRowCount)+1).Value(&ww[i])
+			if err != nil {
+				revel.ERROR.Fatalf("Error scanning world row: %v", err)
+			}
+			ww[i].RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
+			// updateStatement.Exec(ww[i].RandomNumber, ww[i].Id) TODO: Update row
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+	return c.RenderJson(ww)
+}
+
 func (c App) Fortune() revel.Result {
-	const fortuneSelect = "SELECT id,message FROM Fortune"
 	var fortunes Fortunes
-	err := db.Jet.Query(fortuneSelect).Rows(&fortunes)
+	err := db.Jet.Query("SELECT id,message FROM Fortune").Rows(&fortunes)
 	if err != nil {
 		revel.ERROR.Fatalf("Error preparing statement: %v", err)
 	}
