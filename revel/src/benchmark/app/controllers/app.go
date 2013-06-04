@@ -27,6 +27,11 @@ type Fortune struct {
 const WorldRowCount = 10000
 
 func init() {
+	revel.Filters = []revel.Filter{
+		revel.RouterFilter,
+		revel.ParamsFilter,
+		revel.ActionInvoker,
+	}
 	revel.OnAppStart(func() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 		db.Init()
@@ -63,7 +68,9 @@ func (c App) Db(queries int) revel.Result {
 			qbs, _ := qbs.GetQbs()
 			defer qbs.Close()
 			ww[i].Id = uint16(rand.Intn(WorldRowCount) + 1)
-			qbs.Find(&ww[i])
+			if err := qbs.Find(&ww[i]); err != nil {
+				revel.ERROR.Fatalf("Error scanning world row: %v", err)
+			}
 			wg.Done()
 		}(i)
 	}
@@ -93,7 +100,9 @@ func (c App) Update(queries int) revel.Result {
 			qbs, _ := qbs.GetQbs()
 			defer qbs.Close()
 			ww[i].Id = uint16(rand.Intn(WorldRowCount) + 1)
-			qbs.Find(&ww[i])
+			if err := qbs.Find(&ww[i]); err != nil {
+				revel.ERROR.Fatalf("Error scanning world row: %v", err)
+			}
 			ww[i].RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
 			qbs.Save(&ww[i])
 			wg.Done()
