@@ -39,6 +39,11 @@ var (
 )
 
 func init() {
+	revel.Filters = []revel.Filter{
+		RouterFilter,
+		ParamsFilter,
+		ActionInvoker,
+	}
 	revel.OnAppStart(func() {
 		var err error
 		runtime.GOMAXPROCS(runtime.NumCPU())
@@ -84,10 +89,10 @@ func (c App) Db(queries int) revel.Result {
 				revel.ERROR.Fatalf("Error scanning world row: %v", err)
 			}
 			wg.Done()
-			release()
 		}(i)
 	}
 	wg.Wait()
+	release(queries)
 	return c.RenderJson(ww)
 }
 
@@ -116,10 +121,10 @@ func (c App) Update(queries int) revel.Result {
 			ww[i].RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
 			updateStatement.Exec(ww[i].RandomNumber, ww[i].Id)
 			wg.Done()
-			release()
 		}(i)
 	}
 	wg.Wait()
+	release(queries)
 	return c.RenderJson(ww)
 }
 
@@ -160,7 +165,7 @@ func (s ByMessage) Less(i, j int) bool { return s.Fortunes[i].Message < s.Fortun
 
 var (
 	conns   int
-	connMu  sync.Mutex
+	connMu  = &sync.Mutex{}
 	waiting []*Wait
 )
 
@@ -170,22 +175,22 @@ type Wait struct {
 }
 
 func acquire(n int) {
-	var w *Wait
 	connMu.Lock()
+	var w *Wait
 	if conns+n > MaxConnectionCount {
-		w := &Wait{n, sync.NewCond(&sync.Mutex{})}
+		w = &Wait{n, sync.NewCond(connMu)}
 		waiting = append(waiting, w)
+		w.cond.Wait()
+	} else {
+		conns += n
 	}
 	connMu.Unlock()
-	if w != nil {
-		w.cond.Wait()
-	}
 }
 
-func release() {
+func release(n int) {
 	var w *Wait
 	connMu.Lock()
-	conns--
+	conns -= n
 	if len(waiting) > 0 && waiting[0].n <= MaxConnectionCount-conns {
 		w, waiting = waiting[0], waiting[1:]
 		conns += w.n
