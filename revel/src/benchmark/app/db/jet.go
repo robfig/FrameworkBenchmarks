@@ -3,7 +3,7 @@ package db
 import (
 	"github.com/eaigner/jet"
 	"github.com/robfig/revel"
-	"os"
+	// "os"
 )
 
 var (
@@ -28,5 +28,5 @@ func Init() {
 	if err != nil {
 		revel.ERROR.Fatal(err)
 	}
-	Jet.SetLogger(jet.NewLogger(os.Stdout))
+	// Jet.SetLogger(jet.NewLogger(os.Stdout))
 }
