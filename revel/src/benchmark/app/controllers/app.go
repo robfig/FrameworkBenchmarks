@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"runtime"
 	"sort"
-	"sync"
 )
 
 type MessageStruct struct {
@@ -61,24 +60,16 @@ func (c App) Db(queries int) revel.Result {
 		return c.RenderJson(w)
 	}
 
-	var (
-		ww = make([]World, queries)
-		wg sync.WaitGroup
-	)
-	wg.Add(queries)
+	ww := make([]World, queries)
 	for i := 0; i < queries; i++ {
-		go func(i int) {
-			// Each parallel request requires its own QBS handle.
-			qbs, _ := qbs.GetQbs()
-			defer qbs.Close()
-			ww[i].Id = uint16(rand.Intn(WorldRowCount) + 1)
-			if err := qbs.Find(&ww[i]); err != nil {
-				revel.ERROR.Fatalf("Error scanning world row: %v", err)
-			}
-			wg.Done()
-		}(i)
+		// Each parallel request requires its own QBS handle.
+		qbs, _ := qbs.GetQbs()
+		defer qbs.Close()
+		ww[i].Id = uint16(rand.Intn(WorldRowCount) + 1)
+		if err := qbs.Find(&ww[i]); err != nil {
+			revel.ERROR.Fatalf("Error scanning world row: %v", err)
+		}
 	}
-	wg.Wait()
 	return c.RenderJson(ww)
 }
 
@@ -94,25 +85,17 @@ func (c App) Update(queries int) revel.Result {
 		return c.RenderJson(&w)
 	}
 
-	var (
-		ww = make([]World, queries)
-		wg sync.WaitGroup
-	)
-	wg.Add(queries)
+	ww := make([]World, queries)
 	for i := 0; i < queries; i++ {
-		go func(i int) {
-			qbs, _ := qbs.GetQbs()
-			defer qbs.Close()
-			ww[i].Id = uint16(rand.Intn(WorldRowCount) + 1)
-			if err := qbs.Find(&ww[i]); err != nil {
-				revel.ERROR.Fatalf("Error scanning world row: %v", err)
-			}
-			ww[i].RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
-			qbs.Save(&ww[i])
-			wg.Done()
-		}(i)
+		qbs, _ := qbs.GetQbs()
+		defer qbs.Close()
+		ww[i].Id = uint16(rand.Intn(WorldRowCount) + 1)
+		if err := qbs.Find(&ww[i]); err != nil {
+			revel.ERROR.Fatalf("Error scanning world row: %v", err)
+		}
+		ww[i].RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
+		qbs.Save(&ww[i])
 	}
-	wg.Wait()
 	return c.RenderJson(ww)
 }
 
