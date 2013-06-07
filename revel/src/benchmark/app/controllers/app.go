@@ -25,7 +25,7 @@ type Fortune struct {
 
 const (
 	WorldRowCount      = 10000
-	MaxIdleConnections = 256
+	MaxConnectionCount = 256
 )
 
 func init() {
@@ -37,7 +37,7 @@ func init() {
 	revel.OnAppStart(func() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 		db.Init()
-		qbs.ChangePoolSize(MaxIdleConnections)
+		qbs.ChangePoolSize(MaxConnectionCount)
 	})
 }
 
@@ -50,13 +50,20 @@ func (c App) Json() revel.Result {
 	return c.RenderJson(MessageStruct{"Hello, world"})
 }
 
+func (c App) Plaintext() revel.Result {
+	return c.RenderText("Hello, World!")
+}
+
 func (c App) Db(queries int) revel.Result {
 	if queries <= 1 {
 		qbs, _ := qbs.GetQbs()
 		defer qbs.Close()
 		var w World
 		w.Id = uint16(rand.Intn(WorldRowCount) + 1)
-		qbs.Find(&w)
+		err := qbs.Find(&w)
+		if err != nil {
+			revel.ERROR.Fatalf("Error scanning world row: %v", err)
+		}
 		return c.RenderJson(w)
 	}
 
@@ -79,9 +86,13 @@ func (c App) Update(queries int) revel.Result {
 		defer qbs.Close()
 		var w World
 		w.Id = uint16(rand.Intn(WorldRowCount) + 1)
-		qbs.Find(&w)
+		if err := qbs.Find(&w); err != nil {
+			revel.ERROR.Fatalf("Error scanning world row: %v", err)
+		}
 		w.RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
-		qbs.Save(&w)
+		if _, err := qbs.Save(&w); err != nil {
+			revel.ERROR.Fatalf("Error updating world row: %v", err)
+		}
 		return c.RenderJson(&w)
 	}
 
@@ -94,7 +105,9 @@ func (c App) Update(queries int) revel.Result {
 			revel.ERROR.Fatalf("Error scanning world row: %v", err)
 		}
 		ww[i].RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
-		qbs.Save(&ww[i])
+		if _, err := qbs.Save(&ww[i]); err != nil {
+			revel.ERROR.Fatalf("Error scanning world row: %v", err)
+		}
 	}
 	return c.RenderJson(ww)
 }
