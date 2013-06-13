@@ -45,15 +45,6 @@ type App struct {
 	*revel.Controller
 }
 
-func (c App) Json() revel.Result {
-	c.Response.ContentType = "application/json"
-	return c.RenderJson(MessageStruct{"Hello, world"})
-}
-
-func (c App) Plaintext() revel.Result {
-	return c.RenderText("Hello, World!")
-}
-
 func (c App) Db(queries int) revel.Result {
 	if queries <= 1 {
 		qbs, _ := qbs.GetQbs()
