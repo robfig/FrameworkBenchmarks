@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"runtime"
 	"sort"
-	"sync"
 )
 
 type MessageStruct struct {
@@ -50,7 +49,6 @@ type App struct {
 }
 
 func (c App) Json() revel.Result {
-	c.Response.ContentType = "application/json"
 	return c.RenderJson(MessageStruct{"Hello, world"})
 }
 
@@ -64,19 +62,13 @@ func (c App) Db(queries int) revel.Result {
 	}
 
 	ww := make([]*World, queries)
-	var wg sync.WaitGroup
-	wg.Add(queries)
 	for i := 0; i < queries; i++ {
-		go func(i int) {
-			result, err := db.Gorp.Get(World{}, rand.Intn(WorldRowCount)+1)
-			if err != nil {
-				revel.ERROR.Fatalf("Error scanning world row: %v", err)
-			}
-			ww[i] = result.(*World)
-			wg.Done()
-		}(i)
+		result, err := db.Gorp.Get(World{}, rand.Intn(WorldRowCount)+1)
+		if err != nil {
+			revel.ERROR.Fatalf("Error scanning world row: %v", err)
+		}
+		ww[i] = result.(*World)
 	}
-	wg.Wait()
 	return c.RenderJson(ww)
 }
 
@@ -92,27 +84,19 @@ func (c App) Update(queries int) revel.Result {
 		return c.RenderJson(w)
 	}
 
-	var (
-		ww = make([]*World, queries)
-		wg sync.WaitGroup
-	)
-	wg.Add(queries)
+	ww := make([]*World, queries)
 	for i := 0; i < queries; i++ {
-		go func(i int) {
-			result, err := db.Gorp.Get(World{}, rand.Intn(WorldRowCount)+1)
-			if err != nil {
-				revel.ERROR.Fatalf("Error scanning world row: %v", err)
-			}
-			ww[i] = result.(*World)
-			ww[i].RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
-			_, err = db.Gorp.Update(ww[i])
-			if err != nil {
-				revel.ERROR.Fatalf("Error scanning world row: %v", err)
-			}
-			wg.Done()
-		}(i)
+		result, err := db.Gorp.Get(World{}, rand.Intn(WorldRowCount)+1)
+		if err != nil {
+			revel.ERROR.Fatalf("Error scanning world row: %v", err)
+		}
+		ww[i] = result.(*World)
+		ww[i].RandomNumber = uint16(rand.Intn(WorldRowCount) + 1)
+		_, err = db.Gorp.Update(ww[i])
+		if err != nil {
+			revel.ERROR.Fatalf("Error scanning world row: %v", err)
+		}
 	}
-	wg.Wait()
 	return c.RenderJson(ww)
 }
 
