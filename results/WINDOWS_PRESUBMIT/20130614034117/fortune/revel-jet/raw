@@ -1,0 +1,136 @@
+Warning: Permanently added '10.147.222.68' (RSA) to the list of known hosts.
+Welcome to Ubuntu 12.04.1 LTS (GNU/Linux 3.2.0-36-virtual x86_64)
+
+ * Documentation:  https://help.ubuntu.com/
+
+  System information as of Fri Jun 14 03:46:17 UTC 2013
+
+  System load:  0.56               Processes:           66
+  Usage of /:   24.0% of 19.69GB   Users logged in:     0
+  Memory usage: 4%                 IP address for eth0: 10.147.222.68
+  Swap usage:   0%
+
+  Graph this data and manage this system at https://landscape.canonical.com/
+
+87 packages can be updated.
+36 updates are security updates.
+
+Get cloud support with Ubuntu Advantage Cloud Guest
+  http://www.ubuntu.com/business/services/cloud
+
+Use Juju to deploy your cloud instances and workloads.
+  https://juju.ubuntu.com/#cloud-precise
+
+---------------------------------------------------------
+ Running Primer revel-jet
+ wrk -H 'Host: localhost' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' -H 'Accept-Language: en-US,en;q=0.5' -H 'User-Agent: Mozilla/5.0 (X11; Linux x86_64) Gecko/20130501 Firefox/30.0 AppleWebKit/600.00 Chrome/30.0.0000.0 Trident/10.0 Safari/600.00' -H 'Cookie: uid=12345678901234567890; __utma=1.1234567890.1234567890.1234567890.1234567890.12; wd=2560x1600' -H 'Connection: keep-alive' -d 60 -c 8 -t 8 http://10.118.223.149:8080/fortune
+---------------------------------------------------------
+
+Running 5s test @ http://10.118.223.149:8080/fortune
+  8 threads and 8 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     6.32ms    5.00ms  45.89ms   95.52%
+    Req/Sec     0.00      0.00     0.00    100.00%
+  6221 requests in 5.00s, 8.87MB read
+Requests/sec:   1243.81
+Transfer/sec:      1.77MB
+
+---------------------------------------------------------
+ Running Warmup revel-jet
+ wrk -H 'Host: localhost' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' -H 'Accept-Language: en-US,en;q=0.5' -H 'User-Agent: Mozilla/5.0 (X11; Linux x86_64) Gecko/20130501 Firefox/30.0 AppleWebKit/600.00 Chrome/30.0.0000.0 Trident/10.0 Safari/600.00' -H 'Cookie: uid=12345678901234567890; __utma=1.1234567890.1234567890.1234567890.1234567890.12; wd=2560x1600' -H 'Connection: keep-alive' -d 15 -c 256 -t 2 http://10.118.223.149:8080/fortune
+---------------------------------------------------------
+
+Running 15s test @ http://10.118.223.149:8080/fortune
+  2 threads and 256 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   163.86ms  143.83ms   1.98s    86.83%
+    Req/Sec   146.34    367.89     2.00k    85.85%
+  19922 requests in 15.00s, 28.40MB read
+  Socket errors: connect 0, read 0, write 0, timeout 42
+Requests/sec:   1327.97
+Transfer/sec:      1.89MB
+
+---------------------------------------------------------
+ Concurrency: 8 for revel-jet
+ wrk -H 'Host: localhost' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' -H 'Accept-Language: en-US,en;q=0.5' -H 'User-Agent: Mozilla/5.0 (X11; Linux x86_64) Gecko/20130501 Firefox/30.0 AppleWebKit/600.00 Chrome/30.0.0000.0 Trident/10.0 Safari/600.00' -H 'Cookie: uid=12345678901234567890; __utma=1.1234567890.1234567890.1234567890.1234567890.12; wd=2560x1600' -H 'Connection: keep-alive' -d 15 -c 8 -t 2 http://10.118.223.149:8080/fortune
+---------------------------------------------------------
+
+Running 15s test @ http://10.118.223.149:8080/fortune
+  2 threads and 8 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     6.69ms   18.26ms 262.98ms   99.01%
+    Req/Sec     0.00      0.00     0.00    100.00%
+  21957 requests in 15.00s, 31.31MB read
+Requests/sec:   1463.69
+Transfer/sec:      2.09MB
+
+---------------------------------------------------------
+ Concurrency: 16 for revel-jet
+ wrk -H 'Host: localhost' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' -H 'Accept-Language: en-US,en;q=0.5' -H 'User-Agent: Mozilla/5.0 (X11; Linux x86_64) Gecko/20130501 Firefox/30.0 AppleWebKit/600.00 Chrome/30.0.0000.0 Trident/10.0 Safari/600.00' -H 'Cookie: uid=12345678901234567890; __utma=1.1234567890.1234567890.1234567890.1234567890.12; wd=2560x1600' -H 'Connection: keep-alive' -d 15 -c 16 -t 2 http://10.118.223.149:8080/fortune
+---------------------------------------------------------
+
+Running 15s test @ http://10.118.223.149:8080/fortune
+  2 threads and 16 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    25.51ms   41.89ms 399.78ms   93.14%
+    Req/Sec     0.00      0.00     0.00    100.00%
+  10727 requests in 15.01s, 15.29MB read
+Requests/sec:    714.70
+Transfer/sec:      1.02MB
+
+---------------------------------------------------------
+ Concurrency: 32 for revel-jet
+ wrk -H 'Host: localhost' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' -H 'Accept-Language: en-US,en;q=0.5' -H 'User-Agent: Mozilla/5.0 (X11; Linux x86_64) Gecko/20130501 Firefox/30.0 AppleWebKit/600.00 Chrome/30.0.0000.0 Trident/10.0 Safari/600.00' -H 'Cookie: uid=12345678901234567890; __utma=1.1234567890.1234567890.1234567890.1234567890.12; wd=2560x1600' -H 'Connection: keep-alive' -d 15 -c 32 -t 2 http://10.118.223.149:8080/fortune
+---------------------------------------------------------
+
+Running 15s test @ http://10.118.223.149:8080/fortune
+  2 threads and 32 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    45.92ms   53.37ms 513.35ms   91.84%
+    Req/Sec     0.00      0.00     0.00    100.00%
+  13061 requests in 15.00s, 18.62MB read
+Requests/sec:    870.61
+Transfer/sec:      1.24MB
+
+---------------------------------------------------------
+ Concurrency: 64 for revel-jet
+ wrk -H 'Host: localhost' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' -H 'Accept-Language: en-US,en;q=0.5' -H 'User-Agent: Mozilla/5.0 (X11; Linux x86_64) Gecko/20130501 Firefox/30.0 AppleWebKit/600.00 Chrome/30.0.0000.0 Trident/10.0 Safari/600.00' -H 'Cookie: uid=12345678901234567890; __utma=1.1234567890.1234567890.1234567890.1234567890.12; wd=2560x1600' -H 'Connection: keep-alive' -d 15 -c 64 -t 2 http://10.118.223.149:8080/fortune
+---------------------------------------------------------
+
+Running 15s test @ http://10.118.223.149:8080/fortune
+  2 threads and 64 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    63.99ms   53.69ms 450.88ms   90.64%
+    Req/Sec     0.00      0.00     0.00    100.00%
+  16791 requests in 15.01s, 23.94MB read
+Requests/sec:   1118.70
+Transfer/sec:      1.59MB
+
+---------------------------------------------------------
+ Concurrency: 128 for revel-jet
+ wrk -H 'Host: localhost' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' -H 'Accept-Language: en-US,en;q=0.5' -H 'User-Agent: Mozilla/5.0 (X11; Linux x86_64) Gecko/20130501 Firefox/30.0 AppleWebKit/600.00 Chrome/30.0.0000.0 Trident/10.0 Safari/600.00' -H 'Cookie: uid=12345678901234567890; __utma=1.1234567890.1234567890.1234567890.1234567890.12; wd=2560x1600' -H 'Connection: keep-alive' -d 15 -c 128 -t 2 http://10.118.223.149:8080/fortune
+---------------------------------------------------------
+
+Running 15s test @ http://10.118.223.149:8080/fortune
+  2 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    90.45ms   27.19ms 202.80ms   81.37%
+    Req/Sec     0.00      0.00     0.00    100.00%
+  20873 requests in 15.00s, 29.76MB read
+Requests/sec:   1391.49
+Transfer/sec:      1.98MB
+
+---------------------------------------------------------
+ Concurrency: 256 for revel-jet
+ wrk -H 'Host: localhost' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' -H 'Accept-Language: en-US,en;q=0.5' -H 'User-Agent: Mozilla/5.0 (X11; Linux x86_64) Gecko/20130501 Firefox/30.0 AppleWebKit/600.00 Chrome/30.0.0000.0 Trident/10.0 Safari/600.00' -H 'Cookie: uid=12345678901234567890; __utma=1.1234567890.1234567890.1234567890.1234567890.12; wd=2560x1600' -H 'Connection: keep-alive' -d 15 -c 256 -t 2 http://10.118.223.149:8080/fortune
+---------------------------------------------------------
+
+Running 15s test @ http://10.118.223.149:8080/fortune
+  2 threads and 256 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   157.38ms  183.79ms   2.50s    99.50%
+    Req/Sec     0.00      0.00     0.00    100.00%
+  20976 requests in 15.00s, 29.91MB read
+  Socket errors: connect 0, read 0, write 0, timeout 58
+Requests/sec:   1398.33
+Transfer/sec:      1.99MB
